@@ -11,17 +11,36 @@
                 <Button fx:id="fileChooser" onAction="#onFileChooserButtonClick" text="Browse.."/>
                 <VBox spacing="10">
                     <children>
-                        <Label text="Center Coordinate"/>
+                        <Label text="Center Coordinate of Circle"/>
                         <HBox spacing="10">
                             <children>
-                                <Label text="X:"/>
+                                <Label text="X of Circle:"/>
                                 <Label fx:id="xCenterCoordinateLabel"/>
                             </children>
                         </HBox>
                         <HBox spacing="10">
                             <children>
-                                <Label text="Y:"/>
+                                <Label text="Y of Circle:"/>
                                 <Label fx:id="yCenterCoordinateLabel"/>
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+
+                <Button fx:id="centerIterpolateButton" onAction="#onCenterIterpolateButtonClick" text="Interpolate.."/>
+                <VBox spacing="10">
+                    <children>
+                        <Label text="Interpolated Center Coordinate"/>
+                        <HBox spacing="10">
+                            <children>
+                                <Label text="X of interpolated Center:"/>
+                                <Label fx:id="xInterpolatedCenterCoordinateLabel"/>
+                            </children>
+                        </HBox>
+                        <HBox spacing="10">
+                            <children>
+                                <Label text="Y of interpolated Center:"/>
+                                <Label fx:id="yInterpolatedCenterCoordinateLabel"/>
                             </children>
                         </HBox>
                     </children>

@@ -36,6 +36,7 @@ public class CenterFindTool extends Group {
     private CanvasWithZoom parentPane;
     private LinkedList<ChangeListener<DoublePoint>> onCenterChangeListeners;
 
+
     public CenterFindTool() {
         onCenterChangeListeners = new LinkedList<>();
         CanvasWithZoom canvasWithZoom = Registry.getCanvasWithZoom();
@@ -217,5 +218,10 @@ public class CenterFindTool extends Group {
 
     public void addOnCenterChangeListener(ChangeListener changeListener) {
         onCenterChangeListeners.add(changeListener);
+    }
+
+    public double getCircleRadius(){
+        DoublePoint center = parentPane.getRealyPoint(new DoublePoint(circle.getCenterX(), circle.getCenterY()));
+        return realyLeftPoint.distanceToPoint(center);
     }
 }

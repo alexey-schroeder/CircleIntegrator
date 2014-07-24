@@ -26,8 +26,6 @@
                         </HBox>
                     </children>
                 </VBox>
-
-                <Button fx:id="centerIterpolateButton" onAction="#onCenterIterpolateButtonClick" text="Interpolate.."/>
                 <VBox spacing="10">
                     <children>
                         <Label text="Interpolated Center Coordinate"/>

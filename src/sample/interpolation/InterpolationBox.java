@@ -8,7 +8,7 @@ import sample.point.DoublePoint;
 public class InterpolationBox {
     private DoublePoint theoreticalCenter;
     private DoublePoint pointWithMaxIntensity;
-    private int boxSize = 20;
+    private int boxSize = 4;
 
 
     public InterpolationBox (double x, double y){

@@ -8,10 +8,12 @@ import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import sample.centerFindTool.CenterFindTool;
+import sample.interpolation.InterpolationBox;
 import sample.interpolation.Interpolator;
 import sample.point.DoublePoint;
 
 import java.io.File;
+import java.util.LinkedList;
 
 public class Controller {
     public CanvasWithZoom canvasWithZoom;
@@ -45,8 +47,10 @@ public class Controller {
                 public void changed(ObservableValue observableValue, Object o, Object o2) {
                     centerOfCircle = (DoublePoint) o2;
 
-                    xCenterCoordinateLabel.setText(String.format("%.0f", centerOfCircle.getX()));
-                    yCenterCoordinateLabel.setText(String.format("%.0f", centerOfCircle.getY()));
+                    xCenterCoordinateLabel.setText(String.format("%.1f", centerOfCircle.getX()));
+                    yCenterCoordinateLabel.setText(String.format("%.1f", centerOfCircle.getY()));
+                    interpolateCenter();
+
                 }
             });
             canvasWithZoom.addTool(centerFindTool);
@@ -60,7 +64,22 @@ public class Controller {
         interpolator.setCircleRadiusFromUser(centerFindTool.getCircleRadius());
         interpolator.interpolate();
         DoublePoint interpolatedCenter = interpolator.getInterpolatedCenter();
-        xInterpolatedCenterCoordinateLabel.setText(String.format("%.0f", interpolatedCenter.getX()));
-        yInterpolatedCenterCoordinateLabel.setText(String.format("%.0f", interpolatedCenter.getY()));
+        xInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getX()));
+        yInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getY()));
+        LinkedList<InterpolationBox> boxes =  interpolator.getInterpolationBoxes();
+        canvasWithZoom.showInterpolateBoxes(boxes);
+    }
+
+    private void interpolateCenter(){
+        Interpolator interpolator = new Interpolator();
+        interpolator.setCircleCenterFromUser(centerOfCircle);
+        interpolator.setMatrix(matrix);
+        interpolator.setCircleRadiusFromUser(centerFindTool.getCircleRadius());
+        interpolator.interpolate();
+        DoublePoint interpolatedCenter = interpolator.getInterpolatedCenter();
+        xInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getX()));
+        yInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getY()));
+        LinkedList<InterpolationBox> boxes =  interpolator.getInterpolationBoxes();
+        canvasWithZoom.showInterpolateBoxes(boxes);
     }
 }

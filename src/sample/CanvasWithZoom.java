@@ -20,7 +20,9 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Rectangle;
 import sample.centerFindTool.CenterFindTool;
+import sample.interpolation.InterpolationBox;
 import sample.point.DoublePoint;
 import sample.point.Point;
 
@@ -51,7 +53,7 @@ public class CanvasWithZoom extends Pane {
     private ToolTipWindow toolTipWindow;
     private Group contentGroup;
     private LinkedList<EventHandler<ScrollEvent>> scrollListeners;
-
+    private LinkedList<Rectangle> interpolateBoxes;
 
     public CanvasWithZoom() {
         this(null);
@@ -65,6 +67,7 @@ public class CanvasWithZoom extends Pane {
         onLineDrawListeners = new HashSet<>();
         onRechtangleDrawListeners = new HashSet<>();
         onImageChangeListeners = new HashSet<>();
+        interpolateBoxes = new LinkedList<>();
 
         canvasForImage = new Canvas();
         canvasForImage.setWidth(minCanvasWidth);
@@ -460,5 +463,57 @@ public class CanvasWithZoom extends Pane {
         centerFindTool.setParentPane(this);
         contentGroup.getChildren().add(centerFindTool);
         centerFindTool.toFront();
+    }
+
+    public void showInterpolateBoxes(LinkedList<InterpolationBox> boxes) {
+        contentGroup.getChildren().removeAll(interpolateBoxes);
+        interpolateBoxes.clear();
+        for (InterpolationBox box : boxes) {
+            Rectangle rectangle = interpolateBoxToRectangle(box);
+            contentGroup.getChildren().add(rectangle);
+            interpolateBoxes.add(rectangle);
+        }
+    }
+
+    private Rectangle interpolateBoxToRectangle(InterpolationBox box) {
+        DoublePoint theroreticalCenter = box.getTheoreticalCenter();
+        DoublePoint center = box.getPointWithMaxIntensity();
+        DoublePoint pointInImageViewer = getZoomPoint(center);
+        double boxSize = 5;
+        Rectangle result = new Rectangle(0, 0, boxSize, boxSize);
+        result.setTranslateX(pointInImageViewer.getX() - boxSize / 2);
+        result.setTranslateY(pointInImageViewer.getY() - boxSize / 2);
+        String[]  toolTipText = new String[]{"theoretical:",
+                "x: " + String.format("%.1f", theroreticalCenter.getX()),
+                "y: " + String.format("%.1f", theroreticalCenter.getY()),
+                System.lineSeparator(),
+                "interpolated:",
+                "x: " + String.format("%.1f", center.getX()),
+                "y: " + String.format("%.1f", center.getY())
+
+        };
+//        String toolTipText = "theoretical:" + System.lineSeparator() +
+//                "x: " + String.format("%.1f", theroreticalCenter.getX()) + System.lineSeparator() +
+//                "y: " + String.format("%.1f", theroreticalCenter.getY()) + System.lineSeparator() +
+//                System.lineSeparator() +
+//                "interpolated:" + System.lineSeparator() +
+//                "x: " + String.format("%.1f", center.getX()) + System.lineSeparator() +
+//                "y: " + String.format("%.1f", center.getY()) + System.lineSeparator();
+
+//        Tooltip tooltip = new Tooltip(toolTipText);
+//        result.setOnMouseEntered(new EventHandler<MouseEvent>() {
+//            @Override
+//            public void handle(MouseEvent mouseEvent) {
+//                showToolTip(toolTipText, mouseEvent.getX() + 5, mouseEvent.getY());
+//            }
+//        });
+
+//        result.setOnMouseExited(new EventHandler<MouseEvent>() {
+//            @Override
+//            public void handle(MouseEvent mouseEvent) {
+//                hideTooltipWindow();
+//            }
+//        });
+        return result;
     }
 }

@@ -35,10 +35,12 @@ public class CenterFindTool extends Group {
     private double lineWidth = 2;
     private CanvasWithZoom parentPane;
     private LinkedList<ChangeListener<DoublePoint>> onCenterChangeListeners;
+    private LinkedList<ChangeListener<DoublePoint>> onChangeEndListeners;
 
 
     public CenterFindTool() {
         onCenterChangeListeners = new LinkedList<>();
+        onChangeEndListeners = new LinkedList<>();
         CanvasWithZoom canvasWithZoom = Registry.getCanvasWithZoom();
         double imageHeight = canvasWithZoom.getImageHeight();
         double imageWidth = canvasWithZoom.getImageWidth();
@@ -186,18 +188,19 @@ public class CenterFindTool extends Group {
 //                refreshRealyPoints();
 //            }
 //        });
-//        edge.addEventHandler(MouseEvent.MOUSE_RELEASED, new EventHandler<MouseEvent>() {
-//
-//            @Override
-//            public void handle(MouseEvent event) {
-//                sendChangeEvent();
-//                refreshRealyPoints();
-//            }
-//        });
+        edge.addEventHandler(MouseEvent.MOUSE_RELEASED, new EventHandler<MouseEvent>() {
+
+            @Override
+            public void handle(MouseEvent event) {
+               sendOnChangeEndEvent();
+            }
+        });
     }
 
-    private void sendChangeEvent() {
-
+    private void sendOnChangeEndEvent() {
+        for (ChangeListener changeListener : onChangeEndListeners) {
+            changeListener.changed(null, null, center);
+        }
     }
 
     private void refreshRealyPoints() {
@@ -218,6 +221,10 @@ public class CenterFindTool extends Group {
 
     public void addOnCenterChangeListener(ChangeListener changeListener) {
         onCenterChangeListeners.add(changeListener);
+    }
+
+    public void addOnChangeEndListener(ChangeListener changeListener) {
+        onChangeEndListeners.add(changeListener);
     }
 
     public double getCircleRadius(){

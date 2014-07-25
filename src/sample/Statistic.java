@@ -420,7 +420,4 @@ public class Statistic {
         sb.append(fval);
         return sb.toString();
     }
-
-
-
 }

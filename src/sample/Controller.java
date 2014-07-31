@@ -16,10 +16,11 @@ import sample.point.DoublePoint;
 import sample.point.IntegerPoint;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Controller {
     public CanvasWithZoom canvasWithZoom;
@@ -32,7 +33,7 @@ public class Controller {
     private DoublePoint interpolatedCenter;
     private Matrix matrix;
     private CenterFindTool centerFindTool;
-    private HashMap<Integer, Double> mapRadiusToIntegratedValue;
+    private double[] mapRadiusToIntegratedValue;
 
     public void initialize() {
         Registry.setCanvasWithZoom(canvasWithZoom);
@@ -75,61 +76,121 @@ public class Controller {
     private void integrateIntensities() {
         int width = matrix.numCols();
         int height = matrix.numRows();
-        HashMap<Integer, LinkedList<IntegerPoint>> mapRadiusToPoints = new HashMap<>();
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                short value = matrix.get(x, y);
-                IntegerPoint point = new IntegerPoint(x, y);
-                point.setValue(value);
-                int distance = (int) Math.round(interpolatedCenter.distanceToPoint(point));
-                LinkedList<IntegerPoint> points = mapRadiusToPoints.get(distance);
-                if (points == null) {
-                    points = new LinkedList<>();
-                    mapRadiusToPoints.put(distance, points);
-                }
-                points.add(point);
-            }
+
+        int maxRadius = getMaxRadius();
+        ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints = new ArrayBlockingQueue[maxRadius];
+        int queueLength = Math.max(width, height) * 5;
+        for (int i = 0; i < mapRadiusToPoints.length; i++) {
+            mapRadiusToPoints[i] = new ArrayBlockingQueue<>(queueLength);
+        }
+        int cores = Runtime.getRuntime().availableProcessors();
+        int halfWidth = width / 2;
+        ExecutorService taskExecutor = Executors.newFixedThreadPool(cores);
+        for (int x = 0; x < halfWidth; x++) {
+            taskExecutor.execute(createThreadForRadiusCalculation(x, height, mapRadiusToPoints));
+            taskExecutor.execute(createThreadForRadiusCalculation(x + halfWidth, height, mapRadiusToPoints));
+        }
+        taskExecutor.shutdown();
+        try {
+            taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            System.out.println(e);
         }
 
-        mapRadiusToIntegratedValue = new HashMap<>();
-        for (Integer radius : mapRadiusToPoints.keySet()) {
-            LinkedList<IntegerPoint> pointsInRadius = mapRadiusToPoints.get(radius);
+        mapRadiusToIntegratedValue = new double[maxRadius];
+        taskExecutor = Executors.newFixedThreadPool(cores);
+        for (int radius = 0; radius < maxRadius; radius++) {
+            taskExecutor.execute(createThreadForRadiusIntegration(radius, mapRadiusToPoints));
+        }
+        taskExecutor.shutdown();
+        try {
+            taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            System.out.println(e);
+        }
+
+        showChart();
+    }
+
+    private int getMaxRadius() {
+        int width = matrix.numCols();
+        int height = matrix.numRows();
+        IntegerPoint top_left = new IntegerPoint(0, 0);
+        IntegerPoint top_right = new IntegerPoint(width, 0);
+        IntegerPoint bottom_left = new IntegerPoint(0, height);
+        IntegerPoint bottom_right = new IntegerPoint(width, height);
+        double distance1 = interpolatedCenter.distanceToPoint(top_left);
+        double distance2 = interpolatedCenter.distanceToPoint(top_right);
+        double distance3 = interpolatedCenter.distanceToPoint(bottom_left);
+        double distance4 = interpolatedCenter.distanceToPoint(bottom_right);
+
+        double max1 = Math.max(distance1, distance2);
+        double max2 = Math.max(distance3, distance4);
+        return (int) Math.max(max1, max2) + 2;
+    }
+
+    private Runnable createThreadForRadiusIntegration(int radius, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                integrateRadiusPoints(radius, mapRadiusToPoints);
+            }
+        };
+        return runnable;
+    }
+
+    private void integrateRadiusPoints(int radius, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+        ArrayBlockingQueue<IntegerPoint> pointsInRadius = mapRadiusToPoints[radius];
+
+        if (!pointsInRadius.isEmpty()) {
             double integratedValue = 0;
             for (IntegerPoint point : pointsInRadius) {
                 integratedValue = integratedValue + point.getValue();
             }
             double averageIntegratedValue = integratedValue / pointsInRadius.size();
-            mapRadiusToIntegratedValue.put(radius, averageIntegratedValue);
+            mapRadiusToIntegratedValue[radius] = averageIntegratedValue;
         }
-        showChart();
+    }
+
+    private Runnable createThreadForRadiusCalculation(int x, int height, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                calculateCirclePoints(x, height, mapRadiusToPoints);
+            }
+        };
+        return runnable;
+    }
+
+    private void calculateCirclePoints(int x, int height, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+        for (int y = 0; y < height; y++) {
+            short value = matrix.get(x, y);
+            IntegerPoint point = new IntegerPoint(x, y);
+            point.setValue(value);
+            int radius = (int) Math.round(interpolatedCenter.distanceToPoint(point));
+            addRadiusPoint(radius, point, mapRadiusToPoints);
+        }
+    }
+
+    private void addRadiusPoint(int radius, IntegerPoint point, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+//        if(radius >= mapRadiusToPoints.length){
+//            System.out.println(radius + ", " + mapRadiusToPoints.length);
+//        }
+        ArrayBlockingQueue<IntegerPoint> points = mapRadiusToPoints[radius];
+        points.add(point);
     }
 
     private void showChart() {
         XYChart.Series integratedValuesChartData = new XYChart.Series();
         integratedValuesChartData.setName("Integrated Values");
-        Set<Integer> radiusesSet = mapRadiusToIntegratedValue.keySet();
-        LinkedList<Integer>  radiusesList = new LinkedList<>(radiusesSet);
-        Collections.sort(radiusesList);
-        for(Integer radius :radiusesList){
-           double integratedValue = mapRadiusToIntegratedValue.get(radius);
+
+        for (int radius = 1; radius < mapRadiusToIntegratedValue.length; radius++) {
+            double integratedValue = mapRadiusToIntegratedValue[radius];
             integratedValuesChartData.getData().add(new XYChart.Data(radius, integratedValue));
         }
         chart.getData().clear();
         chart.getData().add(integratedValuesChartData);
     }
-
-//    public void onCenterIterpolateButtonClick(ActionEvent actionEvent) {
-//        Interpolator interpolator = new Interpolator();
-//        interpolator.setCircleCenterFromUser(centerOfCircle);
-//        interpolator.setMatrix(matrix);
-//        interpolator.setCircleRadiusFromUser(centerFindTool.getCircleRadius());
-//        interpolator.interpolate();
-//        DoublePoint interpolatedCenter = interpolator.getInterpolatedCenter();
-//        xInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getX()));
-//        yInterpolatedCenterCoordinateLabel.setText(String.format("%.1f", interpolatedCenter.getY()));
-//        LinkedList<InterpolationBox> boxes =  interpolator.getInterpolationBoxes();
-//        canvasWithZoom.showInterpolateBoxes(boxes);
-//    }
 
     private void interpolateCenter() {
         Interpolator interpolator = new Interpolator();

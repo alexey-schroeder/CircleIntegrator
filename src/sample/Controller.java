@@ -1,5 +1,6 @@
 package sample;
 
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -74,42 +75,53 @@ public class Controller {
     }
 
     private void integrateIntensities() {
-        int width = matrix.numCols();
-        int height = matrix.numRows();
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                int width = matrix.numCols();
+                int height = matrix.numRows();
 
-        int maxRadius = getMaxRadius();
-        ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints = new ArrayBlockingQueue[maxRadius];
-        int queueLength = Math.max(width, height) * 5;
-        for (int i = 0; i < mapRadiusToPoints.length; i++) {
-            mapRadiusToPoints[i] = new ArrayBlockingQueue<>(queueLength);
-        }
-        int cores = Runtime.getRuntime().availableProcessors();
-        int halfWidth = width / 2;
-        ExecutorService taskExecutor = Executors.newFixedThreadPool(cores);
-        for (int x = 0; x < halfWidth; x++) {
-            taskExecutor.execute(createThreadForRadiusCalculation(x, height, mapRadiusToPoints));
-            taskExecutor.execute(createThreadForRadiusCalculation(x + halfWidth, height, mapRadiusToPoints));
-        }
-        taskExecutor.shutdown();
-        try {
-            taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            System.out.println(e);
-        }
+                int maxRadius = getMaxRadius();
+                ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints = new ArrayBlockingQueue[maxRadius];
+                int queueLength = Math.max(width, height) * 5;
+                for (int i = 0; i < mapRadiusToPoints.length; i++) {
+                    mapRadiusToPoints[i] = new ArrayBlockingQueue<>(queueLength);
+                }
+                int cores = Runtime.getRuntime().availableProcessors();
+                int halfWidth = width / 2;
+                ExecutorService taskExecutor = Executors.newFixedThreadPool(cores);
+                for (int x = 0; x < halfWidth; x++) {
+                    taskExecutor.execute(createThreadForRadiusCalculation(x, height, mapRadiusToPoints));
+                    taskExecutor.execute(createThreadForRadiusCalculation(x + halfWidth, height, mapRadiusToPoints));
+                }
+                taskExecutor.shutdown();
+                try {
+                    taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                } catch (InterruptedException e) {
+                    System.out.println(e);
+                }
 
-        mapRadiusToIntegratedValue = new double[maxRadius];
-        taskExecutor = Executors.newFixedThreadPool(cores);
-        for (int radius = 0; radius < maxRadius; radius++) {
-            taskExecutor.execute(createThreadForRadiusIntegration(radius, mapRadiusToPoints));
-        }
-        taskExecutor.shutdown();
-        try {
-            taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            System.out.println(e);
-        }
-
-        showChart();
+                mapRadiusToIntegratedValue = new double[maxRadius];
+                taskExecutor = Executors.newFixedThreadPool(cores);
+                for (int radius = 0; radius < maxRadius; radius++) {
+                    taskExecutor.execute(createThreadForRadiusIntegration(radius, mapRadiusToPoints));
+                }
+                taskExecutor.shutdown();
+                try {
+                    taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                } catch (InterruptedException e) {
+                    System.out.println(e);
+                }
+                Runnable runnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        showChart();
+                    }
+                };
+                Platform.runLater(runnable);
+            }
+        };
+        thread.start();
     }
 
     private int getMaxRadius() {

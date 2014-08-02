@@ -15,10 +15,10 @@ import sample.interpolation.InterpolationBox;
 import sample.interpolation.Interpolator;
 import sample.point.DoublePoint;
 import sample.point.IntegerPoint;
+import sample.point.SynchronizedList;
 
 import java.io.File;
 import java.util.LinkedList;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -82,10 +82,10 @@ public class Controller {
                 int height = matrix.numRows();
 
                 int maxRadius = getMaxRadius();
-                ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints = new ArrayBlockingQueue[maxRadius];
-                int queueLength = Math.max(width, height) * 5;
+                SynchronizedList<IntegerPoint>[] mapRadiusToPoints = new SynchronizedList[maxRadius];
                 for (int i = 0; i < mapRadiusToPoints.length; i++) {
-                    mapRadiusToPoints[i] = new ArrayBlockingQueue<>(queueLength);
+                    int size = (int) (10 * i) + 1;
+                    mapRadiusToPoints[i] = new SynchronizedList<>(size);
                 }
                 int cores = Runtime.getRuntime().availableProcessors();
                 int halfWidth = width / 2;
@@ -141,7 +141,7 @@ public class Controller {
         return (int) Math.max(max1, max2) + 2;
     }
 
-    private Runnable createThreadForRadiusIntegration(int radius, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+    private Runnable createThreadForRadiusIntegration(int radius, SynchronizedList<IntegerPoint>[] mapRadiusToPoints) {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -151,12 +151,13 @@ public class Controller {
         return runnable;
     }
 
-    private void integrateRadiusPoints(int radius, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
-        ArrayBlockingQueue<IntegerPoint> pointsInRadius = mapRadiusToPoints[radius];
+    private void integrateRadiusPoints(int radius, SynchronizedList<IntegerPoint>[] mapRadiusToPoints) {
+        SynchronizedList<IntegerPoint> pointsInRadius = mapRadiusToPoints[radius];
 
         if (!pointsInRadius.isEmpty()) {
             double integratedValue = 0;
-            for (IntegerPoint point : pointsInRadius) {
+            for (int i = 0; i < pointsInRadius.size(); i++) {
+                IntegerPoint point = pointsInRadius.get(i);
                 integratedValue = integratedValue + point.getValue();
             }
             double averageIntegratedValue = integratedValue / pointsInRadius.size();
@@ -164,7 +165,7 @@ public class Controller {
         }
     }
 
-    private Runnable createThreadForRadiusCalculation(int x, int height, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+    private Runnable createThreadForRadiusCalculation(int x, int height, SynchronizedList<IntegerPoint>[] mapRadiusToPoints) {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -174,7 +175,7 @@ public class Controller {
         return runnable;
     }
 
-    private void calculateCirclePoints(int x, int height, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+    private void calculateCirclePoints(int x, int height, SynchronizedList<IntegerPoint>[] mapRadiusToPoints) {
         for (int y = 0; y < height; y++) {
             short value = matrix.get(x, y);
             IntegerPoint point = new IntegerPoint(x, y);
@@ -184,11 +185,11 @@ public class Controller {
         }
     }
 
-    private void addRadiusPoint(int radius, IntegerPoint point, ArrayBlockingQueue<IntegerPoint>[] mapRadiusToPoints) {
+    private void addRadiusPoint(int radius, IntegerPoint point, SynchronizedList<IntegerPoint>[] mapRadiusToPoints) {
 //        if(radius >= mapRadiusToPoints.length){
 //            System.out.println(radius + ", " + mapRadiusToPoints.length);
 //        }
-        ArrayBlockingQueue<IntegerPoint> points = mapRadiusToPoints[radius];
+        SynchronizedList<IntegerPoint> points = mapRadiusToPoints[radius];
         points.add(point);
     }
 
